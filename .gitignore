@@ -1,0 +1,25 @@
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets: every real .env stays local. Only .env.example files are committed.
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+dist/

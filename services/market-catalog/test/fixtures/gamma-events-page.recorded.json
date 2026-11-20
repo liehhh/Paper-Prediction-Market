@@ -1,0 +1,412 @@
+{
+  "_comment": "Recorded from the real Gamma API, then trimmed: each event keeps <=3 open and <=1 closed nested market and a subset of fields. Values are unmodified.",
+  "recordedAt": "2026-11-20T13:06:31.418Z",
+  "request": "https://gamma-api.polymarket.com/events/keyset?tag_slug=pop-culture&closed=false&limit=6",
+  "page": {
+    "events": [
+      {
+        "id": "22448",
+        "ticker": "taylor-swift-pregnant-in-2025",
+        "slug": "taylor-swift-pregnant-in-2025",
+        "title": "Taylor Swift pregnant by...?",
+        "startDate": "2025-07-30T15:52:32.624357Z",
+        "endDate": "2027-01-01T04:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "negRisk": false,
+        "tags": [
+          {
+            "id": "100",
+            "label": "Music",
+            "slug": "music"
+          },
+          {
+            "id": "286",
+            "label": "Celebrities",
+            "slug": "celebrities"
+          },
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          },
+          {
+            "id": "595",
+            "label": "Taylor Swift",
+            "slug": "taylor-swift"
+          }
+        ],
+        "markets": [
+          {
+            "id": "1048199",
+            "question": "Taylor Swift pregnant before 2027?",
+            "conditionId": "0x0803b42cec5723f301f77f3ea818fcb393eb58b9694096cab2d4f8b81b4a2bdf",
+            "slug": "taylor-swift-pregnant-before-2027",
+            "endDate": "2027-01-01T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.055\", \"0.945\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "December 31, 2026",
+            "clobTokenIds": "[\"44827572479353518081244438746113968420401867280288091969239280589388541478697\", \"98165997526504155072211489624964995141099749875757338865080345428663813769275\"]"
+          },
+          {
+            "id": "535013",
+            "question": "Taylor Swift pregnant in 2025?",
+            "conditionId": "0xf4f51e9e4e8439e32f64dc0e659828af7564f9cbc323d4f7442f2c590a2ea07d",
+            "slug": "taylor-swift-pregnant-in-2025",
+            "endDate": "2026-01-01T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0\", \"1\"]",
+            "active": true,
+            "closed": true,
+            "archived": false,
+            "acceptingOrders": false,
+            "enableOrderBook": true,
+            "groupItemTitle": "December 31, 2025",
+            "clobTokenIds": "[\"44305836174662659056360031599221289950024907383706896555756948878751959775782\", \"72122482770569588499506755542531317316214547923366033552728295449545343415738\"]"
+          }
+        ]
+      },
+      {
+        "id": "73122",
+        "ticker": "obama-divorce-before-2027",
+        "slug": "obama-divorce-before-2027",
+        "title": "Obama divorce before 2027?",
+        "startDate": "2025-11-05T17:46:17.019Z",
+        "endDate": "2027-01-01T04:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "tags": [
+          {
+            "id": "100293",
+            "label": "obama",
+            "slug": "obama"
+          },
+          {
+            "id": "286",
+            "label": "Celebrities",
+            "slug": "celebrities"
+          },
+          {
+            "id": "2",
+            "label": "Politics",
+            "slug": "politics"
+          },
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          }
+        ],
+        "markets": [
+          {
+            "id": "665362",
+            "question": "Obama divorce before 2027?",
+            "conditionId": "0x38b1d6bd79d7ac4f4af70dfdc22697a718ae2eb6a9e163ca0b66840791b260a2",
+            "slug": "obama-divorce-before-2027",
+            "endDate": "2027-01-01T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.0225\", \"0.9775\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "",
+            "clobTokenIds": "[\"44063303868429221225588045924522977894154982539636220472819290361333994729054\", \"61801941511025518263072695884468590923523412893791597273989066224932248868777\"]"
+          }
+        ]
+      },
+      {
+        "id": "73340",
+        "ticker": "weed-rescheduled-by-march-31",
+        "slug": "weed-rescheduled-by-march-31",
+        "title": "Weed rescheduled by...?",
+        "startDate": "2025-11-05T20:00:49.764675Z",
+        "endDate": "2027-01-01T04:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "negRisk": false,
+        "tags": [
+          {
+            "id": "126",
+            "label": "Trump",
+            "slug": "trump"
+          },
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          },
+          {
+            "id": "100239",
+            "label": "Marijuana",
+            "slug": "marijuana"
+          },
+          {
+            "id": "103687",
+            "label": "Cannabis",
+            "slug": "cannabis"
+          }
+        ],
+        "markets": [
+          {
+            "id": "1353293",
+            "question": "Weed rescheduled by December 31?",
+            "conditionId": "0x5ca748e7d1e070a392c9aa3e4d62ad3c00c3a9fce0a1ea721ca7c8ed388b5e42",
+            "slug": "weed-rescheduled-by-december-31",
+            "endDate": "2027-01-01T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.073\", \"0.927\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": " December 31",
+            "clobTokenIds": "[\"106242108424222475629727740144106174703801188909496798021612020652737768072831\", \"109661757968686077522974792938650999760140615540736938967881958072068279154168\"]"
+          },
+          {
+            "id": "2695772",
+            "question": "Weed rescheduled by July 31?",
+            "conditionId": "0xc77398d8b6df3be8f686559bd3e6cbcb38b511ec622ed14e05168465990092f0",
+            "slug": "weed-rescheduled-by-july-31-20260626165746924",
+            "endDate": "2026-08-01T03:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0\", \"1\"]",
+            "active": true,
+            "closed": true,
+            "archived": false,
+            "acceptingOrders": false,
+            "enableOrderBook": true,
+            "groupItemTitle": "July 31",
+            "clobTokenIds": "[\"114606684465340950527419880547261781790851196142584634686782565614073327200922\", \"94470337806168643319708648799019619573262193034801546957776812945278029187957\"]"
+          }
+        ]
+      },
+      {
+        "id": "79090",
+        "ticker": "richest-person-on-december-31-2026",
+        "slug": "richest-person-on-december-31-2026",
+        "title": "Richest person on December 31, 2026?",
+        "startDate": "2025-11-12T22:36:51.61409Z",
+        "endDate": "2027-01-03T04:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "negRisk": true,
+        "tags": [
+          {
+            "id": "107",
+            "label": "Business",
+            "slug": "business"
+          },
+          {
+            "id": "101999",
+            "label": "Big Tech",
+            "slug": "big-tech"
+          },
+          {
+            "id": "282",
+            "label": "Elon Musk",
+            "slug": "elon-musk"
+          },
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          }
+        ],
+        "markets": [
+          {
+            "id": "676937",
+            "question": "Will Elon Musk be richest person on December 31?",
+            "conditionId": "0x01529e40f3b4cdf5eafe074adfe1bb9c152d57747ad93b7a87d3823d5d4d608f",
+            "slug": "will-elon-musk-be-richest-person-on-december-31-797",
+            "endDate": "2027-01-03T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.976\", \"0.024\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "Elon Musk",
+            "clobTokenIds": "[\"41705069735159156999504661820390416470161634904927625228523488895800195498379\", \"16557618941524795155045269656098996049704075497539339960725033560241855005814\"]"
+          },
+          {
+            "id": "676938",
+            "question": "Will Larry Ellison be richest person on December 31?",
+            "conditionId": "0xe9eb11a4b76b9374c6d35a4613e95ba24869901d5311c62013a8b54d460c98db",
+            "slug": "will-larry-ellison-be-richest-person-on-december-31-367",
+            "endDate": "2027-01-03T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.0025\", \"0.9975\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "Larry Ellison",
+            "clobTokenIds": "[\"615094416514808605813829723293526632125831510977361379383548534617200266829\", \"68993122011402013941419872828311069574962163568947374730234065548298013240531\"]"
+          },
+          {
+            "id": "676939",
+            "question": "Will Mark Zuckerberg be richest person on December 31?",
+            "conditionId": "0x83f44cfb8c848cfb995d2f37e25baaffdfd502ffaa35c74cbe277c82a6ae7b99",
+            "slug": "will-mark-zuckerberg-be-richest-person-on-december-31-366",
+            "endDate": "2027-01-03T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.0045\", \"0.9955\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "Mark Zuckerberg",
+            "clobTokenIds": "[\"18241160633130205209616350465780865909185289965882997691321004640467937174771\", \"86421941294345017064650928227226969042225533106644464769098563704930331920905\"]"
+          }
+        ]
+      },
+      {
+        "id": "79103",
+        "ticker": "which-artists-will-release-a-new-song-in-2026",
+        "slug": "which-artists-will-release-a-new-song-in-2026",
+        "title": "Which artists will release a new song in 2026?",
+        "startDate": "2025-11-12T22:37:12.225331Z",
+        "endDate": "2027-01-02T07:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "negRisk": false,
+        "tags": [
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          },
+          {
+            "id": "100",
+            "label": "Music",
+            "slug": "music"
+          }
+        ],
+        "markets": [
+          {
+            "id": "676992",
+            "question": "Will Frank Ocean release a new song in 2026?",
+            "conditionId": "0xce92e2efdc13584f681266b443bbfe7671a11c5295234621eda97258207b894b",
+            "slug": "will-frank-ocean-release-a-new-song-in-2026",
+            "endDate": "2027-01-02T07:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.14\", \"0.86\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "Frank Ocean",
+            "clobTokenIds": "[\"7522310177656702492924224686403329000165051679584954349626009719578371530218\", \"71568785018202283796726664690591815839242033429237210582838331282778157253545\"]"
+          },
+          {
+            "id": "676997",
+            "question": "Will Nicki Minaj release a new song in 2026?",
+            "conditionId": "0x8a1b8ba89dcc18b6c871d493854e41625ddb3f3197e61a879514f2b567c21fcb",
+            "slug": "will-nicki-minaj-release-a-new-song-in-2026",
+            "endDate": "2027-01-02T07:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.2205\", \"0.7795\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "Nicki Minaj",
+            "clobTokenIds": "[\"80194150062661869797400607321041040044071132243328292838854826333057695559389\", \"80406142518734044590232148576413073837381730365043349281225250499004583165741\"]"
+          },
+          {
+            "id": "677001",
+            "question": "Will JAY-Z release a new song in 2026?",
+            "conditionId": "0xffda1c03516975d418d8f87b201ddfafac0c9c3995494bdcb02106cfc7da0847",
+            "slug": "will-jay-z-release-a-new-song-in-2026",
+            "endDate": "2027-01-02T07:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.49\", \"0.51\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "JAY-Z",
+            "clobTokenIds": "[\"62579805889335213695146477642120558659516316300833801262610721119520215144363\", \"97396465875442064909958922334567956523563910711455475146363954330711448522681\"]"
+          },
+          {
+            "id": "676993",
+            "question": "Will Drake release a new song in 2026?",
+            "conditionId": "0x832c7e1f9db10d94d6eb951411bd01ffebce4009c013014f2ccfdbb7cc2a9ca4",
+            "slug": "will-drake-release-a-new-song-in-2026",
+            "endDate": "2026-12-31T00:00:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"1\", \"0\"]",
+            "active": true,
+            "closed": true,
+            "archived": false,
+            "acceptingOrders": false,
+            "enableOrderBook": true,
+            "groupItemTitle": "Drake",
+            "clobTokenIds": "[\"23615153224305862439034812959224454429293586748796989914082705095648382768821\", \"72099118653289875466554345295170301677833605033260483129426877654434166214239\"]"
+          }
+        ]
+      },
+      {
+        "id": "79163",
+        "ticker": "will-half-life-3-be-announced-before-2027",
+        "slug": "will-half-life-3-be-announced-before-2027",
+        "title": "Will Half-Life 3 be announced before 2027?",
+        "startDate": "2025-11-11T21:40:42.288943Z",
+        "endDate": "2027-01-01T04:59:00Z",
+        "active": true,
+        "closed": false,
+        "archived": false,
+        "tags": [
+          {
+            "id": "100639",
+            "label": "Games",
+            "slug": "games"
+          },
+          {
+            "id": "596",
+            "label": "Culture",
+            "slug": "pop-culture"
+          }
+        ],
+        "markets": [
+          {
+            "id": "677218",
+            "question": "Will Half-Life 3 be announced before 2027?",
+            "conditionId": "0x8af1519f0b6704eaa52ac0890275b011fbca31729bf93fd956899a2c7ea410c0",
+            "slug": "will-half-life-3-be-announced-before-2027",
+            "endDate": "2027-01-01T04:59:00Z",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.07\", \"0.93\"]",
+            "active": true,
+            "closed": false,
+            "archived": false,
+            "acceptingOrders": true,
+            "enableOrderBook": true,
+            "groupItemTitle": "",
+            "clobTokenIds": "[\"61357261066156427607874461963210376168557582747775514258762252431133388687435\", \"6991261290382769111733079462092282665787540572081318556604857015498053666166\"]"
+          }
+        ]
+      }
+    ],
+    "next_cursor": "DcysFNEg7eg87F5MNVMzZn0BWY2qtniRC3vavL6VQv57InYiOjEsImsiOiJldmVudHMiLCJvaCI6IjRmNTNjZGExOGMyYmFhMGMwMzU0YmI1ZjlhM2VjYmU1ZWQxMmFiNGQ4ZTExYmE4NzNjMmYxMTE2MTIwMmI5NDUiLCJrZXlzIjpbeyJ0Ijoic3RyaW5nIiwidiI6Ijc5MTYzIn1dfQ"
+  }
+}

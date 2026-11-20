@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+# pnpm does not run dependency install scripts unless they are allowed here.
+# - supabase: installs the Supabase CLI binary used by `pnpm db:migrate`.
+# - @embedded-postgres/windows-x64: restores symlinks inside the throwaway test Postgres binary.
+# - sharp / unrs-resolver: native helpers used by Next.js and eslint-config-next.
+allowBuilds:
+  supabase: true
+  "@embedded-postgres/windows-x64": true
+  sharp: true
+  unrs-resolver: true
