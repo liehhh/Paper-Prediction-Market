@@ -6,9 +6,9 @@
 import type pg from "pg";
 import type { CatalogFreshness, CategorySlug, Market, MarketListQuery, SyncRunStatus } from "@league/catalog-contract";
 
-/** Stable ordering: soonest expected end first, unknown end dates last, then by id. */
+/** Stable ordering ("Trending"): highest reported 24h volume first, then lowest id. */
 interface CursorPosition {
-  sortKey: string; // ISO timestamp or "infinity"
+  volume: string; // whole-dollar integer, as text so it survives JSON unchanged
   id: string;
 }
 
@@ -20,16 +20,15 @@ export class InvalidCursorError extends Error {
 }
 
 export function encodeCursor(position: CursorPosition): string {
-  return Buffer.from(JSON.stringify([position.sortKey, position.id])).toString("base64url");
+  return Buffer.from(JSON.stringify([position.volume, position.id])).toString("base64url");
 }
 
 export function decodeCursor(cursor: string): CursorPosition {
   try {
     const decoded: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
     if (Array.isArray(decoded) && decoded.length === 2) {
-      const [sortKey, id] = decoded;
-      const validSortKey = sortKey === "infinity" || (typeof sortKey === "string" && !Number.isNaN(Date.parse(sortKey)));
-      if (validSortKey && typeof id === "string" && /^\d{1,19}$/.test(id)) return { sortKey, id };
+      const [volume, id] = decoded;
+      if (typeof volume === "string" && /^\d{1,20}$/.test(volume) && typeof id === "string" && /^\d{1,19}$/.test(id)) return { volume, id };
     }
   } catch {
     // fall through
@@ -46,9 +45,9 @@ interface MarketRow {
   yes_price: number | null;
   no_price: number | null;
   prices_as_of: Date | null;
+  volume_text: string;
   source_url: string | null;
-  last_seen_at: Date;
-  sort_key: string;
+  synced_at: Date;
 }
 
 export async function listMarkets(
@@ -59,17 +58,18 @@ export async function listMarkets(
   const { rows } = await pool.query<MarketRow>(
     `select id::text, question, event_title, categories, expected_end_at,
             yes_price::float8 as yes_price, no_price::float8 as no_price, prices_as_of,
-            source_url, last_seen_at,
-            case when expected_end_at is null then 'infinity'
-                 else to_char(expected_end_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') end as sort_key
+            volume24hr::text as volume_text, source_url,
+            -- Rows are only rewritten when they change, so row timestamps say nothing about
+            -- freshness. Report the last complete refresh instead.
+            coalesce((select finished_at from market_catalog.sync_runs
+                       where status = 'succeeded' order by id desc limit 1), prices_as_of, now()) as synced_at
        from market_catalog.markets
       where listing_status = 'listed'
         and ($1::text is null or $1 = any (categories))
-        and ($2::timestamptz is null
-             or (coalesce(expected_end_at, 'infinity'::timestamptz), id) > ($2::timestamptz, $3::bigint))
-      order by coalesce(expected_end_at, 'infinity'::timestamptz), id
+        and ($2::numeric is null or volume24hr < $2::numeric or (volume24hr = $2::numeric and id > $3::bigint))
+      order by volume24hr desc, id asc
       limit $4`,
-    [query.category ?? null, after?.sortKey ?? null, after?.id ?? null, query.limit + 1],
+    [query.category ?? null, after?.volume ?? null, after?.id ?? null, query.limit + 1],
   );
 
   const hasMore = rows.length > query.limit;
@@ -77,7 +77,7 @@ export async function listMarkets(
   const last = pageRows.at(-1);
   return {
     markets: pageRows.map(toMarket),
-    nextCursor: hasMore && last ? encodeCursor({ sortKey: last.sort_key, id: last.id }) : null,
+    nextCursor: hasMore && last ? encodeCursor({ volume: last.volume_text, id: last.id }) : null,
   };
 }
 
@@ -92,8 +92,9 @@ function toMarket(row: MarketRow): Market {
       row.yes_price !== null && row.no_price !== null && row.prices_as_of
         ? { yes: row.yes_price, no: row.no_price, asOf: row.prices_as_of.toISOString() }
         : null,
+    volume24hr: Number(row.volume_text),
     sourceUrl: row.source_url,
-    lastSyncedAt: row.last_seen_at.toISOString(),
+    lastSyncedAt: row.synced_at.toISOString(),
   };
 }
 

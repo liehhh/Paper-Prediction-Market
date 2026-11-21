@@ -16,6 +16,8 @@ export const GammaEventSchema = z.object({
   slug: z.string().nullish(),
   title: z.string().nullish(),
   markets: z.array(z.unknown()).nullish(),
+  // Event tags drive our categories. Only the slug is read; entries without one are ignored.
+  tags: z.array(z.object({ slug: z.string().nullish() })).nullish(),
 });
 export type GammaEvent = z.infer<typeof GammaEventSchema>;
 
@@ -33,5 +35,8 @@ export const GammaMarketSchema = z.object({
   archived: z.boolean().nullish(),
   acceptingOrders: z.boolean().nullish(),
   endDate: z.string().nullish(),
+  // Market-level 24h volume (USD). A number when present; absent on ~20% of markets
+  // (observed 2026-11-20), which we treat as zero activity.
+  volume24hr: z.number().nullish(),
 });
 export type GammaMarket = z.infer<typeof GammaMarketSchema>;

@@ -11,13 +11,14 @@ on a catalog page. Accounts, credits, trading, live prices, settlement, and lead
 
 ## Architecture
 
-Three separate Node.js processes with explicit HTTP boundaries, plus one hosted Supabase Postgres database.
+Four separate Node.js processes with explicit HTTP boundaries, plus one hosted Supabase Postgres database and Supabase Auth.
 
 | Process | Port | Responsibility | Touches Postgres? |
 |---|---|---|---|
 | [`apps/web`](apps/web) | 3000 | Next.js + Tailwind catalog page. Calls the public API from the server. | No |
-| [`services/api`](services/api) | 4000 | Public, client-facing Express API (`GET /v1/markets`). | No |
-| [`services/market-catalog`](services/market-catalog) | 4100 (loopback only) | Polymarket integration, normalization, catalog storage and reads. Internal HTTP + one-shot sync CLI. | **Yes, the only one** |
+| [`services/api`](services/api) | 4000 | Public, client-facing Express API (`GET /v1/markets`, `/v1/me/trading-account`). Verifies Supabase access tokens. | No |
+| [`services/market-catalog`](services/market-catalog) | 4100 (loopback only) | Polymarket integration, normalization, catalog storage and reads. Internal HTTP + one-shot sync CLI. | **Yes** (`market_catalog` schema) |
+| [`services/trading`](services/trading) | 4200 (loopback only) | Trading accounts, the cash ledger, the 10,000-credit starting grant. Will own paper-trade execution. | **Yes** (`trading` schema) |
 
 [`packages/catalog-contract`](packages/catalog-contract/src/index.ts) holds the zod schemas for the catalog
 HTTP contract. It's shared because all three processes need the same shape, and each one validates what it receives.
@@ -25,7 +26,7 @@ HTTP contract. It's shared because all three processes need the same shape, and 
 ```mermaid
 flowchart LR
   subgraph SyncPath["Sync path: write (pnpm catalog:sync or POST /internal/v1/sync)"]
-    PM[(Polymarket Gamma API)] -->|GET /events/keyset<br/>per tag, paginated| CAT_SYNC[market-catalog<br/>runCatalogSync]
+    PM[(Polymarket Gamma API)] -->|GET /events/keyset<br/>top 10 by 24h volume, per tag| CAT_SYNC[market-catalog<br/>runCatalogSync]
     CAT_SYNC -->|one transaction:<br/>upsert + maybe delist| DB[(Supabase Postgres<br/>schema market_catalog)]
   end
   subgraph ReadPath["Read path: never contacts Polymarket"]
@@ -84,8 +85,8 @@ Copy-Item apps\web\.env.example apps\web\.env.local
    save it outside the repo, and set `DATABASE_CA_CERT_PATH=` to its path. Without it, the connection is still
    encrypted but the server certificate is not verified, and the service logs a warning.
 
-`DATABASE_URL` exists only in `services/market-catalog/.env`. The API and web app never receive it, and it never
-reaches the browser.
+`DATABASE_URL` exists only in `services/market-catalog/.env` and `services/trading/.env` (copy the same value into both, or
+give the trading service its own database role later). The API and web app never receive it, and it never reaches the browser.
 
 ### Apply migrations (one command)
 
@@ -108,19 +109,41 @@ only the catalog service reads it. RLS is enabled with no policies as defense in
 ## Run it
 
 ```powershell
-pnpm catalog:sync   # import open politics + pop-culture markets (~15-30 s, ~14k markets)
-pnpm dev            # starts web (3000), api (4000), market-catalog (4100) in one terminal
+pnpm catalog:sync   # import the shortlist: 2 requests, at most 20 events / 40 questions (a few seconds)
+pnpm dev            # starts web (3000), api (4000), market-catalog (4100), trading (4200) in one terminal
 ```
 
 Open <http://localhost:3000>. Run `pnpm catalog:sync` again at any time: existing rows are updated in place.
+
+## Accounts and the starting balance
+
+Registration and sign-in use **Supabase Auth** (email + password). Each signed-in player gets one **trading account**
+with a one-time grant of exactly **10,000 virtual credits**, recorded as the first row of an append-only **ledger**
+(`trading.ledger_entries`). Available cash is the sum of the ledger; there is no separate balance column.
+
+One-time setup (the services run without it, but sign-in will answer "not configured"):
+
+1. Supabase dashboard -> **Authentication -> Sign In / Providers**: Email enabled, **Confirm email** on.
+2. **Authentication -> URL Configuration**: Site URL `http://localhost:3000`; add `http://localhost:3000/auth/confirm` to Redirect URLs.
+3. Optional but more robust: **Authentication -> Email Templates -> Confirm signup**, set the link to
+   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (works from any browser or device).
+4. **Project Settings -> API Keys**: copy the Project URL and the **Publishable** key into `SUPABASE_URL` and
+   `SUPABASE_PUBLISHABLE_KEY` in **both** `services/api/.env` and `apps/web/.env.local`. These are public values;
+   never use the secret or `service_role` key anywhere in this project.
+5. `Copy-Item services\trading\.env.example services\trading\.env`, fill in `DATABASE_URL`, then run `pnpm db:migrate`
+   (it applies the `trading` schema migration too).
+
+Then `pnpm dev`, open <http://localhost:3000>, choose **My account**, register, confirm your email, and sign in.
+The dashboard shows your paper cash and the starting-grant entry. Not covered yet: usernames, profile pictures,
+trading, market-data sync, and the leaderboard (each is its own milestone).
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Start all three processes in watch mode |
+| `pnpm dev` | Start all four processes in watch mode |
 | `pnpm db:migrate` | Apply pending SQL migrations to `DATABASE_URL` |
-| `pnpm catalog:sync` | One-shot sync. Exit code 0 = succeeded, 2 = partial, 1 = failed/superseded |
+| `pnpm catalog:sync` | One-shot sync. Exit code 0 = succeeded, 1 = failed/superseded |
 | `pnpm lint` | ESLint (services + packages, then Next.js rules for web) |
 | `pnpm typecheck` | `tsc` in every workspace |
 | `pnpm test` | Deterministic tests: fixtures, fake HTTP, throwaway Postgres. **No network.** |
@@ -139,7 +162,8 @@ That's why the code uses erasable syntax only and imports use `.ts` extensions.
 ## How the catalog stays correct
 
 ### Polymarket integration (verified 2026-11-20 against the docs and real responses)
-- **Endpoint:** `GET https://gamma-api.polymarket.com/events/keyset?tag_slug=…&closed=false&limit=100`, cursor pagination via `next_cursor`/`after_cursor`.
+- **Endpoint:** one request per category: `GET https://gamma-api.polymarket.com/events/keyset?tag_slug=…&closed=false&active=true&order=volume24hr&ascending=false&limit=10`. `next_cursor` is deliberately not followed.
+- **Shortlist** ([`select-shortlist.ts`](services/market-catalog/src/sync/select-shortlist.ts)): events are deduplicated by provider ID (one event can be top-10 in both categories), then each event keeps its **2 most-traded eligible questions** by market-level `volume24hr` (missing counts as 0). Maximum: 20 events, 40 questions. Event volume says which *topics* are hot; market volume says which *questions* within a topic people trade. A hot event can hold 50+ markets, so the two rankings are separate steps.
 - **Events vs markets:** an *event* ("Macron out by…?") contains *markets*, which are the tradable YES/NO questions
   ("Macron out by June 30, 2026?"). We store and display **markets**. `closed=false` filters events only.
   Open events routinely contain closed markets, so each market is checked individually.
@@ -156,8 +180,7 @@ That's why the code uses erasable syntax only and imports use `.ts` extensions.
   - outcomes that are not exactly one "Yes" and one "No" (for example `["Labour","National"]`)
   - prices that are malformed or outside 0–1
   - unparseable end dates
-- **Limits:** a per-run limit of `SYNC_MAX_PAGES_PER_TAG` (default 40 pages × 100 events; today's catalog needs 18 + 6),
-  a 30 s timeout per request, and up to 4 attempts with exponential backoff that honours `Retry-After` on 429 and 5xx.
+- **Limits:** a 30 s timeout per request, and up to 4 attempts with exponential backoff that honours `Retry-After` on 429 and 5xx.
   Other 4xx responses fail immediately.
 
 ### Publishing rules ([`sync-run-store.ts`](services/market-catalog/src/catalog/sync-run-store.ts))
@@ -166,9 +189,9 @@ That's why the code uses erasable syntax only and imports use `.ts` extensions.
 2. **Idempotent upserts.** `unique (provider, provider_market_id)` plus `on conflict do update`, so re-syncing never duplicates.
 3. **No stale overwrite.** Publishes take a transaction-scoped advisory lock. If a newer run has already published,
    an older run is marked `superseded` and writes nothing.
-4. **Only complete runs delist.** Markets missing from a *complete* listing become `delisted`, which hides them but
-   never marks them closed or resolved. A truncated listing, or a tag that came back empty, is published as `partial`:
-   rows are upserted and categories only added, nothing is delisted.
+4. **The latest shortlist replaces the previous one.** A successful run delists every market not on the new shortlist.
+   That hides it but never deletes it or marks it resolved, so old rows remain as history. If either category fails, or yields
+   no eligible question, the run is `failed` and the previous shortlist stays on screen.
 5. **Two freshness facts.** "Last successful refresh" is the newest `succeeded` run, and "latest attempt" is the newest run
    of any status. The page shows a warning when a newer attempt failed or was partial.
 6. Snapshot prices are labelled "Snapshot from last sync · not live" everywhere they appear.
@@ -202,8 +225,9 @@ Open these files in order to follow a Polymarket response into a Postgres row an
 | Suite | Data source |
 |---|---|
 | [`normalize-market.test.ts`](services/market-catalog/test/normalize-market.test.ts) | A **recorded** Gamma page ([fixture](services/market-catalog/test/fixtures/gamma-events-page.recorded.json), trimmed but with values unmodified) plus **hand-written** edge cases |
-| [`gamma-client.test.ts`](services/market-catalog/test/gamma-client.test.ts) | Fake HTTP: pagination, truncation, retries, 429/422 |
-| [`catalog-sync.int.test.ts`](services/market-catalog/test/catalog-sync.int.test.ts) | Hand-written payloads + a **throwaway real PostgreSQL 17** (`embedded-postgres`, UTF-8, temp directory). Covers duplicate imports, failed-refresh preservation, truncation, delisting, superseded runs, pagination, and non-ASCII text |
+| [`select-shortlist.test.ts`](services/market-catalog/test/select-shortlist.test.ts) | Pure selection: event dedupe, top-2 questions per event, 20 events / 40 questions cap |
+| [`gamma-client.test.ts`](services/market-catalog/test/gamma-client.test.ts) | Fake HTTP: one request with the right params, retries, 429/422 |
+| [`catalog-sync.int.test.ts`](services/market-catalog/test/catalog-sync.int.test.ts) | Hand-written payloads + a **throwaway real PostgreSQL 17** (`embedded-postgres`, UTF-8, temp directory). Covers 2-request syncs, top-2 selection, duplicate imports, shortlist replacement with history kept, failed-category preservation, superseded runs, pagination, and non-ASCII text |
 | [`services/api/test`](services/api/test/markets-route.test.ts) | Real HTTP against a fake catalog server: validation, error shape, no leaked internals |
 | [`apps/web/src/lib/catalog-notice.test.ts`](apps/web/src/lib/catalog-notice.test.ts) | Pure UI-state logic |
 | [`test/live/gamma-live.test.ts`](services/market-catalog/test/live/gamma-live.test.ts) (`pnpm test:live`) | **Real Polymarket API** |

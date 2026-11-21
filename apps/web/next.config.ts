@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // The shared contract package ships TypeScript source; let Next compile it.
-  transpilePackages: ["@league/catalog-contract"],
+  // The shared contract packages ship TypeScript source; let Next compile them.
+  transpilePackages: ["@league/catalog-contract", "@league/trading-contract"],
   poweredByHeader: false,
 };
 

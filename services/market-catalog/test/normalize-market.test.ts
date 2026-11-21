@@ -56,6 +56,20 @@ describe("normalizeGammaEvent with representative edge cases (hand-written)", ()
     expect(markets[0]?.snapshotPrices).toBeNull();
   });
 
+  it("assigns categories from the event's tags: several allowed, unmapped events fall back to other", () => {
+    const categoriesOf = (tags: Array<{ slug?: string | null }> | undefined) =>
+      normalizeGammaEvent(gammaEvent({ tags, markets: [gammaMarket()] }), fetchedAt).markets[0]?.categories;
+    expect(categoriesOf([{ slug: "politics" }, { slug: "pop-culture" }, { slug: "trump" }])).toEqual(["politics", "pop-culture"]);
+    expect(categoriesOf([{ slug: "sports" }, { slug: "soccer" }])).toEqual(["sports"]);
+    expect(categoriesOf([{ slug: "games" }, { slug: null }])).toEqual(["other"]);
+    expect(categoriesOf(undefined)).toEqual(["other"]);
+  });
+
+  it("carries market-level 24h volume in whole dollars, treating a missing value as 0", () => {
+    expect(normalizeOne({ volume24hr: 1234.4 }).markets[0]?.volume24hr).toBe(1234);
+    expect(normalizeOne({}).markets[0]?.volume24hr).toBe(0);
+  });
+
   it("treats an open market whose outcomePrices key is absent as having no snapshot", () => {
     const { markets } = normalizeOne({ outcomePrices: undefined });
     expect(markets[0]?.snapshotPrices).toBeNull();

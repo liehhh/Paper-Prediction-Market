@@ -8,13 +8,32 @@
  */
 import { z } from "zod";
 
-export const CATEGORY_SLUGS = ["politics", "pop-culture"] as const;
+export const CATEGORY_SLUGS = [
+  "politics",
+  "sports",
+  "crypto",
+  "pop-culture",
+  "geopolitics",
+  "economy",
+  "finance",
+  "tech",
+  "weather",
+  "other",
+] as const;
 export const CategorySlugSchema = z.enum(CATEGORY_SLUGS);
 export type CategorySlug = z.infer<typeof CategorySlugSchema>;
 
 export const CATEGORY_LABELS: Record<CategorySlug, string> = {
   politics: "Politics",
+  sports: "Sports",
+  crypto: "Crypto",
   "pop-culture": "Pop culture",
+  geopolitics: "Geopolitics",
+  economy: "Economy",
+  finance: "Finance",
+  tech: "Tech",
+  weather: "Weather",
+  other: "Other",
 };
 
 export const MARKET_PAGE_SIZE_DEFAULT = 24;
@@ -47,6 +66,8 @@ export const MarketSchema = z.object({
   categories: z.array(CategorySlugSchema).min(1),
   expectedEndAt: isoDateTime.nullable(),
   snapshotPrices: SnapshotPricesSchema.nullable(),
+  /** Reported 24-hour trading volume in USD (this question only). The list is ordered by it. */
+  volume24hr: z.number().min(0),
   sourceUrl: z.url().nullable(),
   lastSyncedAt: isoDateTime,
 });

@@ -25,10 +25,15 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Paper Prediction League</p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Paper Prediction League</p>
+          <Link href="/dashboard" className="text-sm font-medium underline-offset-2 hover:underline">
+            My account
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Market catalog</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Open politics and pop-culture questions imported from Polymarket. Virtual credits only — no real money.
+          Open Polymarket questions, most-traded first (ranked by reported 24-hour volume). Virtual credits only — no real money.
         </p>
       </header>
 

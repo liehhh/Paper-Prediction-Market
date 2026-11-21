@@ -7,7 +7,6 @@ const pool = createPool(config.databaseUrl, config.databaseCaCertPath);
 const app = createApp({
   pool,
   gamma: config.gamma,
-  maxPagesPerTag: config.maxPagesPerTag,
   log: (message) => console.log(`[sync] ${message}`),
 });
 

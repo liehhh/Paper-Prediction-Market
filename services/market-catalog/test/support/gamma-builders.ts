@@ -20,7 +20,7 @@ export function gammaMarket(overrides: Record<string, unknown> = {}): Record<str
 }
 
 export function gammaEvent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return { id: "501", slug: "test-event", title: "Test event", markets: [gammaMarket()], ...overrides };
+  return { id: "501", slug: "test-event", title: "Test event", tags: [{ slug: "politics" }], markets: [gammaMarket()], ...overrides };
 }
 
 export interface FakePage {
@@ -29,19 +29,21 @@ export interface FakePage {
 }
 
 /**
- * A fetch stand-in for GET /events/keyset. `pagesByTag[tag][n]` is served for the n-th page;
- * the cursor is simply the next page index. `failTag` makes every request for that tag fail.
+ * A fetch stand-in for GET /events/keyset. `pages[n]` is served for the n-th page; the cursor is
+ * simply the next page index, and the last page has no next_cursor. `failFromPage` (1-based)
+ * makes that page and every later one fail, which simulates a scan dying halfway.
  */
-export function fakeGamma(pagesByTag: Record<string, FakePage[]>, options: { failTag?: string; failStatus?: number } = {}) {
+export function fakeGamma(pages: FakePage[], options: { failFromPage?: number; failStatus?: number } = {}) {
   const requests: string[] = [];
   const fetchImpl = (async (input: string | URL | Request) => {
     const url = new URL(input instanceof Request ? input.url : input);
     requests.push(`${url.pathname}?${url.searchParams}`);
-    const tag = url.searchParams.get("tag_slug") ?? "";
-    if (tag === options.failTag) return new Response("upstream down", { status: options.failStatus ?? 503 });
     const pageIndex = Number(url.searchParams.get("after_cursor") ?? "0");
-    const page = pagesByTag[tag]?.[pageIndex] ?? { events: [] };
-    return Response.json(page);
+    if (options.failFromPage !== undefined && pageIndex + 1 >= options.failFromPage) {
+      return new Response("upstream down", { status: options.failStatus ?? 503 });
+    }
+    const page = pages[pageIndex] ?? { events: [] };
+    return Response.json({ events: page.events, ...(pageIndex + 1 < pages.length ? { next_cursor: String(pageIndex + 1) } : {}) });
   }) as typeof fetch;
 
   const gamma: GammaClientOptions = {

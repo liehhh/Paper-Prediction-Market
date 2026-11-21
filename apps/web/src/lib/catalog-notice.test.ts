@@ -8,6 +8,7 @@ const market: MarketListResponse["markets"][number] = {
   eventTitle: "E",
   categories: ["politics"],
   expectedEndAt: null,
+  volume24hr: 1000,
   snapshotPrices: null,
   sourceUrl: null,
   lastSyncedAt: "2026-11-20T10:00:00.000Z",

@@ -1,5 +1,5 @@
 /**
- * HTTP access to Polymarket's Gamma API: keyset pagination, timeouts, and retries.
+ * HTTP access to Polymarket's Gamma API: paging through every active event, timeouts, retries.
  * Returns raw (unvalidated) events; normalize-market.ts validates each one.
  */
 import { GammaEventsPageSchema } from "./gamma-schemas.ts";
@@ -14,15 +14,10 @@ export interface GammaClientOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-export interface GammaEventsPage {
-  pageNumber: number;
-  events: unknown[];
-  fetchedAt: Date;
-  /** True when Polymarket returned a next_cursor, i.e. more events exist after this page. */
-  hasMorePages: boolean;
-}
-
-/** Gamma's documented maximum page size for /events/keyset. */
+/**
+ * Observed 2026-11-21: /events/keyset returns at most 100 events per page, whatever larger
+ * `limit` is sent (200 and 500 still gave 100). So this is the real page size.
+ */
 export const EVENTS_PAGE_SIZE = 100;
 const MAX_RETRY_AFTER_MS = 30_000;
 
@@ -35,29 +30,41 @@ export class GammaRequestError extends Error {
   }
 }
 
+export interface GammaEventsPage {
+  pageNumber: number;
+  events: unknown[];
+  fetchedAt: Date;
+  /** True when Gamma still offered a next_cursor after this page (the scan was cut off by maxPages). */
+  hasMorePages: boolean;
+}
+
 /**
- * Yields pages of open events carrying `tagSlug`, following `next_cursor`, for at most
- * `maxPages` pages. The caller detects truncation when the last yielded page still has
- * `hasMorePages === true`. Any request that still fails after retries throws, so a caller
- * never mistakes a failed listing for a short one.
+ * Yields every open, active event, one request at a time (no concurrency), following
+ * `next_cursor` for at most `maxPages` pages.
+ *
+ * Ordered by event id, ascending. Ids never change, so the scan is not disturbed by trading
+ * activity: a volume-sorted scan reshuffles while we page through it and can skip events.
+ * Popularity ranking is done later, by our own database.
+ *
+ * Any request that still fails after retries throws, so a caller never mistakes a failed
+ * scan for a short one. The caller detects a cut-off scan when the last yielded page still
+ * has `hasMorePages === true`.
  */
-export async function* fetchOpenEventPages(
-  options: GammaClientOptions,
-  tagSlug: string,
-  maxPages: number,
-): AsyncGenerator<GammaEventsPage> {
+export async function* fetchActiveEventPages(options: GammaClientOptions, maxPages: number): AsyncGenerator<GammaEventsPage> {
   let cursor: string | undefined;
   for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
     const url = new URL("/events/keyset", options.baseUrl);
-    url.searchParams.set("tag_slug", tagSlug);
     url.searchParams.set("closed", "false"); // filters events; nested markets can still be closed
+    url.searchParams.set("active", "true");
+    url.searchParams.set("order", "id");
+    url.searchParams.set("ascending", "true");
     url.searchParams.set("limit", String(EVENTS_PAGE_SIZE));
     if (cursor) url.searchParams.set("after_cursor", cursor);
 
     const body = await getJsonWithRetry(options, url);
     const page = GammaEventsPageSchema.safeParse(body);
     if (!page.success) {
-      throw new GammaRequestError(`Unexpected /events/keyset response shape for tag "${tagSlug}" page ${pageNumber}`, false);
+      throw new GammaRequestError(`Unexpected /events/keyset response shape on page ${pageNumber}`, false);
     }
 
     cursor = page.data.next_cursor ?? undefined;
@@ -91,7 +98,7 @@ async function getJsonWithRetry(options: GammaClientOptions, url: URL): Promise<
       if (response.status === 429) retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
       await response.body?.cancel();
     } catch (error) {
-      // Network errors, timeouts (AbortSignal.timeout), and truncated/invalid JSON bodies.
+      // Network errors (ECONNRESET was seen on oversized pages), timeouts, truncated/invalid JSON.
       const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
       failure = new GammaRequestError(`Gamma ${label} failed: ${reason}`, true);
     }

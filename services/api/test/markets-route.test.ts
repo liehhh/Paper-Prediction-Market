@@ -25,6 +25,7 @@ const samplePage: MarketListResponse = {
       eventTitle: "X?",
       categories: ["politics"],
       expectedEndAt: "2027-01-01T04:59:00.000Z",
+      volume24hr: 1000,
       snapshotPrices: { yes: 0.25, no: 0.75, asOf: "2026-11-20T12:00:00.000Z" },
       sourceUrl: "https://polymarket.com/event/x",
       lastSyncedAt: "2026-11-20T12:00:00.000Z",
@@ -59,7 +60,7 @@ describe("GET /v1/markets", () => {
     expect(seen[0]?.searchParams.get("limit")).toBe("10");
   });
 
-  it.each([["category=sports"], ["limit=0"], ["limit=101"], ["limit=abc"]])("rejects %s with the standard error shape", async (qs) => {
+  it.each([["category=chess"], ["limit=0"], ["limit=101"], ["limit=abc"]])("rejects %s with the standard error shape", async (qs) => {
     const { apiUrl, seen } = await startApi(() => ({ status: 200, body: samplePage }));
     const response = await fetch(`${apiUrl}/v1/markets?${qs}`);
     expect(response.status).toBe(400);

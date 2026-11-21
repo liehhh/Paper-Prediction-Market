@@ -5,6 +5,8 @@
  * Event vs market: a Polymarket *event* is a container ("Macron out by...?"); each nested
  * *market* is one tradable YES/NO question ("Macron out by June 30, 2026?"). We store markets.
  */
+import type { CategorySlug } from "@league/catalog-contract";
+import { categoriesForTags } from "../categories.ts";
 import { GammaEventSchema, GammaMarketSchema } from "./gamma-schemas.ts";
 
 export interface NormalizedMarket {
@@ -13,12 +15,16 @@ export interface NormalizedMarket {
   eventTitle: string;
   eventSlug: string | null;
   question: string;
+  /** From the event's upstream tags; an event can sit in several. "other" when none map. */
+  categories: CategorySlug[];
   outcomeLabels: [string, string];
   /** null when Polymarket sent no prices for this market. */
   snapshotPrices: { yes: number; no: number } | null;
   sourceUrl: string | null;
   expectedEndAt: Date | null;
   acceptingOrders: boolean;
+  /** 24-hour trading volume in USD; 0 when Polymarket omits it. Used only to rank questions. */
+  volume24hr: number;
   fetchedAt: Date;
 }
 
@@ -55,7 +61,8 @@ export function normalizeGammaEvent(rawEvent: unknown, fetchedAt: Date): Normali
     };
   }
 
-  const { id: eventId, slug, title, markets: rawMarkets } = event.data;
+  const { id: eventId, slug, title, markets: rawMarkets, tags } = event.data;
+  const categories = categoriesForTags((tags ?? []).flatMap((tag) => (tag.slug ? [tag.slug] : [])));
   const eventSlug = slug && EVENT_SLUG_PATTERN.test(slug) ? slug : null;
   // Event URL format from Polymarket's docs examples: https://polymarket.com/event/{event slug}
   const sourceUrl = eventSlug ? `https://polymarket.com/event/${eventSlug}` : null;
@@ -67,6 +74,7 @@ export function normalizeGammaEvent(rawEvent: unknown, fetchedAt: Date): Normali
       eventTitle: title?.trim() || null,
       eventSlug,
       sourceUrl,
+      categories,
       fetchedAt,
     });
     if ("reason" in outcome) result.skips.push(outcome);
@@ -80,6 +88,7 @@ interface EventContext {
   eventTitle: string | null;
   eventSlug: string | null;
   sourceUrl: string | null;
+  categories: CategorySlug[];
   fetchedAt: Date;
 }
 
@@ -143,11 +152,14 @@ function normalizeGammaMarket(rawMarket: unknown, ctx: EventContext): Normalized
     eventTitle: ctx.eventTitle ?? question,
     eventSlug: ctx.eventSlug,
     question,
+    categories: ctx.categories,
     outcomeLabels: [labels[0]!, labels[1]!],
     snapshotPrices,
     sourceUrl: ctx.sourceUrl,
     expectedEndAt,
     acceptingOrders: true,
+    // Whole dollars: sub-dollar jitter would make every re-sync rewrite every row.
+    volume24hr: market.volume24hr && market.volume24hr > 0 ? Math.round(market.volume24hr) : 0,
     fetchedAt: ctx.fetchedAt,
   };
 }

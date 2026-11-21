@@ -1,40 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { fetchOpenEventPages, type GammaClientOptions } from "../src/polymarket/gamma-client.ts";
+import { EVENTS_PAGE_SIZE, fetchActiveEventPages, type GammaClientOptions } from "../src/polymarket/gamma-client.ts";
 import { fakeGamma, gammaEvent } from "./support/gamma-builders.ts";
 
-async function collect(options: GammaClientOptions, tag: string, maxPages: number) {
+async function collect(options: GammaClientOptions, maxPages = 50) {
   const pages = [];
-  for await (const page of fetchOpenEventPages(options, tag, maxPages)) pages.push(page);
+  for await (const page of fetchActiveEventPages(options, maxPages)) pages.push(page);
   return pages;
 }
 
-describe("fetchOpenEventPages (fake HTTP)", () => {
-  it("follows next_cursor until the last page and requests open events by tag", async () => {
-    const { gamma, requests } = fakeGamma({
-      politics: [{ events: [gammaEvent()], next_cursor: "1" }, { events: [gammaEvent({ id: "502" })] }],
-    });
-    const pages = await collect(gamma, "politics", 10);
-    expect(pages.map((p) => [p.pageNumber, p.events.length, p.hasMorePages])).toEqual([
-      [1, 1, true],
-      [2, 1, false],
-    ]);
-    expect(requests[0]).toContain("tag_slug=politics");
-    expect(requests[0]).toContain("closed=false");
-    expect(requests[0]).toContain("limit=100");
-    expect(requests[1]).toContain("after_cursor=1");
+describe("fetchActiveEventPages (fake HTTP)", () => {
+  it("follows next_cursor to the end with the stable id-ordered, open-and-active request", async () => {
+    const { gamma, requests } = fakeGamma([{ events: [gammaEvent({ id: "1" })] }, { events: [gammaEvent({ id: "2" })] }, { events: [gammaEvent({ id: "3" })] }]);
+    const pages = await collect(gamma);
+
+    expect(pages.map((p) => p.events.length)).toEqual([1, 1, 1]);
+    expect(pages.map((p) => p.hasMorePages)).toEqual([true, true, false]);
+    expect(requests).toHaveLength(3);
+    const first = Object.fromEntries(new URLSearchParams(requests[0]!.split("?")[1]));
+    expect(first).toEqual({ closed: "false", active: "true", order: "id", ascending: "true", limit: String(EVENTS_PAGE_SIZE) });
+    expect(new URLSearchParams(requests[1]!.split("?")[1]).get("after_cursor")).toBe("1");
   });
 
-  it("stops at the per-run page limit and leaves hasMorePages=true so the caller sees truncation", async () => {
-    const { gamma, requests } = fakeGamma({
-      politics: [{ events: [], next_cursor: "1" }, { events: [], next_cursor: "2" }, { events: [] }],
-    });
-    const pages = await collect(gamma, "politics", 2);
-    expect(pages).toHaveLength(2);
-    expect(pages.at(-1)?.hasMorePages).toBe(true);
+  it("stops at maxPages and reports the scan as cut off", async () => {
+    const { gamma, requests } = fakeGamma([{ events: [] }, { events: [] }, { events: [] }]);
+    const pages = await collect(gamma, 2);
     expect(requests).toHaveLength(2);
+    expect(pages.at(-1)?.hasMorePages).toBe(true);
   });
 
-  it("retries transient failures and then succeeds", async () => {
+  it("retries transient failures (429 honouring Retry-After, network error) and then succeeds", async () => {
     let calls = 0;
     const waits: number[] = [];
     const options: GammaClientOptions = {
@@ -49,15 +43,14 @@ describe("fetchOpenEventPages (fake HTTP)", () => {
         return Response.json({ events: [] });
       }) as typeof fetch,
     };
-    const pages = await collect(options, "politics", 5);
-    expect(pages).toHaveLength(1);
+    await collect(options);
     expect(calls).toBe(3);
-    expect(waits[0]).toBeGreaterThanOrEqual(2000); // Retry-After honoured
+    expect(waits[0]).toBeGreaterThanOrEqual(2000);
   });
 
-  it("gives up after the attempt limit instead of returning a short listing", async () => {
-    const { gamma } = fakeGamma({}, { failTag: "politics", failStatus: 503 });
-    await expect(collect(gamma, "politics", 5)).rejects.toThrow(/503/);
+  it("throws when a later page keeps failing, instead of returning the pages it had", async () => {
+    const { gamma } = fakeGamma([{ events: [gammaEvent({ id: "1" })] }, { events: [gammaEvent({ id: "2" })] }], { failFromPage: 2, failStatus: 503 });
+    await expect(collect(gamma)).rejects.toThrow(/503/);
   });
 
   it("does not retry client errors such as 422", async () => {
@@ -72,17 +65,17 @@ describe("fetchOpenEventPages (fake HTTP)", () => {
         return new Response("bad", { status: 422 });
       }) as typeof fetch,
     };
-    await expect(collect(options, "politics", 5)).rejects.toThrow(/422/);
+    await expect(collect(options)).rejects.toThrow(/422/);
     expect(calls).toBe(1);
   });
 
-  it("rejects a page whose shape is not the documented { events, next_cursor }", async () => {
+  it("rejects a response whose shape is not the documented { events, next_cursor }", async () => {
     const options: GammaClientOptions = {
       baseUrl: "https://gamma.test",
       requestTimeoutMs: 1000,
       maxAttemptsPerRequest: 1,
       fetchImpl: (async () => Response.json([{ id: "1" }])) as typeof fetch,
     };
-    await expect(collect(options, "politics", 5)).rejects.toThrow(/Unexpected/);
+    await expect(collect(options)).rejects.toThrow(/Unexpected/);
   });
 });

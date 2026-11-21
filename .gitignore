@@ -23,3 +23,10 @@ Thumbs.db
 node_modules/
 .next/
 dist/
+
+# TLS certificates and keys stay local (the Supabase CA path goes in .env)
+ssl/
+SSL/
+*.crt
+*.pem
+*.key
