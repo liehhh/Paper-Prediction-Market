@@ -24,3 +24,14 @@ describe("formatSignedCredits", () => {
     expect(formatSignedCredits("-12.500000")).toBe("-12.50");
   });
 });
+
+describe("formatShares and formatSharePrice", () => {
+  it("drops meaningless zeros but never invents precision", async () => {
+    const { formatShares, formatSharePrice } = await import("./format-credits.ts");
+    expect(formatShares("4000.000000")).toBe("4,000");
+    expect(formatShares("3846.150000")).toBe("3,846.15");
+    expect(formatSharePrice("0.650000")).toBe("0.65");
+    expect(formatSharePrice("0.004500")).toBe("0.0045");
+    expect(formatSharePrice("1.000000")).toBe("1.00");
+  });
+});

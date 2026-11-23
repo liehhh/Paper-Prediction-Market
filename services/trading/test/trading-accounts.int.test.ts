@@ -9,6 +9,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TradingAccountResponseSchema } from "@league/trading-contract";
 import { getTradingAccount, provisionTradingAccount, STARTING_GRANT_CREDITS } from "../src/accounts/trading-accounts.ts";
 import { createApp } from "../src/http/create-app.ts";
+import { ValuationService } from "../src/league/valuation.ts";
+import { FakeCatalog } from "./support/fake-catalog.ts";
 import { startTestDatabase, type TestDatabase } from "./support/test-database.ts";
 
 let db: TestDatabase;
@@ -148,7 +150,8 @@ describe("internal HTTP interface", () => {
   let server: Server;
   let baseUrl: string;
   beforeAll(async () => {
-    server = createServer(createApp({ pool: db.pool }));
+    const catalog = new FakeCatalog();
+    server = createServer(createApp({ pool: db.pool, catalog, valuation: new ValuationService({ pool: db.pool, catalog, ttlMs: 0 }) }));
     baseUrl = await new Promise<string>((resolve) =>
       server.listen(0, "127.0.0.1", () => resolve(`http://127.0.0.1:${(server.address() as AddressInfo).port}`)),
     );

@@ -1,11 +1,16 @@
 # Paper Prediction League
 
-A public paper-trading league for politics and pop-culture prediction markets. Players will eventually get
-10,000 virtual credits and trade YES/NO positions at external market prices. **Everything is simulated:
-there are no deposits, withdrawals, wallets, or real-money orders.**
+A public paper-trading league for political prediction markets. Every player gets 10,000 **Power** (the league's
+fictional currency) and trades YES/NO shares at real Polymarket order-book prices. Every player is a country on a shared
+map; a country's size is its share of all Power. **Everything is simulated: there are no deposits, withdrawals, wallets,
+or real-money orders.** ("Power" is only what users see; stored identifiers keep their original names so existing
+accounts, balances and grant history are untouched, and no second grant is ever issued.)
 
-**Milestone 1 (this code):** Polymarket market questions are imported into Postgres automatically and shown
-on a catalog page. Accounts, credits, trading, live prices, settlement, and leaderboards come later.
+**Current milestone: the first end-to-end political trade.** Preview and execute a paper trade against a live quote,
+atomic accounting, portfolio, country size and global rank, and settlement from an official outcome. See
+[docs/paper-trading.md](docs/paper-trading.md): commands, the two-browser demo, every policy, and one trade traced through the code.
+
+**Then: the World and profile pictures.** Every player is a country circle on a shared, pannable and zoomable map whose area follows total Power, with optional profile pictures. See [docs/world.md](docs/world.md).
 
 ---
 
@@ -18,7 +23,7 @@ Four separate Node.js processes with explicit HTTP boundaries, plus one hosted S
 | [`apps/web`](apps/web) | 3000 | Next.js + Tailwind catalog page. Calls the public API from the server. | No |
 | [`services/api`](services/api) | 4000 | Public, client-facing Express API (`GET /v1/markets`, `/v1/me/trading-account`). Verifies Supabase access tokens. | No |
 | [`services/market-catalog`](services/market-catalog) | 4100 (loopback only) | Polymarket integration, normalization, catalog storage and reads. Internal HTTP + one-shot sync CLI. | **Yes** (`market_catalog` schema) |
-| [`services/trading`](services/trading) | 4200 (loopback only) | Trading accounts, the cash ledger, the 10,000-credit starting grant. Will own paper-trade execution. | **Yes** (`trading` schema) |
+| [`services/trading`](services/trading) | 4200 (loopback only) | Accounts, the Power ledger, the 10,000 Power grant, paper-trade preview/execution, positions, valuation, league ranking, settlement. Asks market-catalog (HTTP) for quotes and official resolutions. | **Yes** (`trading` schema) |
 
 [`packages/catalog-contract`](packages/catalog-contract/src/index.ts) holds the zod schemas for the catalog
 HTTP contract. It's shared because all three processes need the same shape, and each one validates what it receives.
@@ -134,8 +139,8 @@ One-time setup (the services run without it, but sign-in will answer "not config
    (it applies the `trading` schema migration too).
 
 Then `pnpm dev`, open <http://localhost:3000>, choose **My account**, register, confirm your email, and sign in.
-The dashboard shows your paper cash and the starting-grant entry. Not covered yet: usernames, profile pictures,
-trading, market-data sync, and the leaderboard (each is its own milestone).
+The dashboard shows your Power, portfolio and username (your country's name; every account gets a unique default you can change).
+Not covered yet: profile pictures, resting orders, seasons.
 
 ## Commands
 

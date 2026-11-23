@@ -24,6 +24,9 @@ function listen(server: Server): Promise<string> {
 
 const account: TradingAccountResponse = {
   openedAt: "2026-11-22T10:00:00.000Z",
+  username: "player_111111111111",
+  avatarKey: null,
+  countryId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   cash: { available: "10000.000000" },
   activity: [{ id: "1", type: "starting_grant", amount: "10000.000000", createdAt: "2026-11-22T10:00:00.000Z" }],
 };

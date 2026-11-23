@@ -36,7 +36,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
   return (
     <main className="mx-auto flex max-w-sm flex-col gap-6 px-4 py-12">
       <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">Paper trading only. You start with 10,000 virtual credits. No real money.</p>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">Paper trading only. You start with 10,000 Power, the game&apos;s virtual currency. No real money.</p>
       {message && <NoticeBox tone="error" title={message} />}
       <AuthForm
         action={register}

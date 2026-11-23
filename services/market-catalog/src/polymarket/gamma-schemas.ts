@@ -38,5 +38,14 @@ export const GammaMarketSchema = z.object({
   // Market-level 24h volume (USD). A number when present; absent on ~20% of markets
   // (observed 2026-11-20), which we treat as zero activity.
   volume24hr: z.number().nullish(),
+  // Trading fields (verified 2026-11-23 against live Gamma responses). clobTokenIds is a JSON-encoded
+  // string array that is positional with outcomes. description holds the resolution rules.
+  clobTokenIds: z.unknown().optional(),
+  conditionId: z.string().nullish(),
+  description: z.string().nullish(),
+  resolutionSource: z.string().nullish(),
+  enableOrderBook: z.boolean().nullish(),
+  orderPriceMinTickSize: z.number().nullish(),
+  orderMinSize: z.number().nullish(),
 });
 export type GammaMarket = z.infer<typeof GammaMarketSchema>;

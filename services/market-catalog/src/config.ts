@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   CATALOG_HOST: z.string().default("127.0.0.1"),
   CATALOG_PORT: z.coerce.number().int().positive().default(4100),
   POLYMARKET_GAMMA_BASE_URL: z.url().default("https://gamma-api.polymarket.com"),
+  POLYMARKET_CLOB_BASE_URL: z.url().default("https://clob.polymarket.com"),
+  POLYMARKET_WS_URL: z.string().regex(/^wss?:\/\//).default("wss://ws-subscriptions-clob.polymarket.com/ws/market"),
   SYNC_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
   SYNC_MAX_ATTEMPTS_PER_REQUEST: z.coerce.number().int().min(1).max(10).default(4),
 });
@@ -25,6 +27,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     databaseCaCertPath: e.DATABASE_CA_CERT_PATH || undefined,
     host: e.CATALOG_HOST,
     port: e.CATALOG_PORT,
+    clobBaseUrl: e.POLYMARKET_CLOB_BASE_URL,
+    wsUrl: e.POLYMARKET_WS_URL,
     gamma: {
       baseUrl: e.POLYMARKET_GAMMA_BASE_URL,
       requestTimeoutMs: e.SYNC_REQUEST_TIMEOUT_MS,

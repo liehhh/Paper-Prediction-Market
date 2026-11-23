@@ -15,6 +15,12 @@ export interface SupabaseAuthOptions {
   url: string;
   publishableKey: string;
   timeoutMs: number;
+  /**
+   * How long a token that Supabase Auth confirmed stays trusted in this process's memory (milliseconds). 0 turns the
+   * cache off. Asking Supabase Auth costs a network round trip (about 400 ms) on EVERY signed-in request, and one page
+   * makes several; the cost of caching is that a token revoked by sign-out keeps working here for at most this long.
+   */
+  cacheTtlMs?: number;
   fetchImpl?: typeof fetch;
 }
 

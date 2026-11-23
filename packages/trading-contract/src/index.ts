@@ -1,4 +1,9 @@
+export * from "./trades.ts";
+
 /**
+ * Power is the league's fictional currency. This contract keeps its original "credit" identifiers in code and stored
+ * data so existing accounts, balances and grant history are untouched; users only ever see the word "Power".
+ *
  * The trading-account HTTP contract, shared by three processes:
  * - services/trading produces it (internal endpoints),
  * - services/api validates it at its boundary and re-serves it as /v1/me/trading-account,
@@ -18,7 +23,7 @@ export const CreditAmountSchema = z.string().regex(/^-?\d{1,14}\.\d{6}$/, "Expec
 const isoDateTime = z.iso.datetime({ offset: true });
 
 /** Why a ledger entry exists. New reasons (fills, settlements) are added here by later milestones. */
-export const LEDGER_ENTRY_TYPES = ["starting_grant"] as const;
+export const LEDGER_ENTRY_TYPES = ["starting_grant", "trade_buy", "trade_sell", "settlement_payout"] as const;
 export const LedgerEntryTypeSchema = z.enum(LEDGER_ENTRY_TYPES);
 export type LedgerEntryType = z.infer<typeof LedgerEntryTypeSchema>;
 
@@ -34,6 +39,11 @@ export type LedgerEntry = z.infer<typeof LedgerEntrySchema>;
 /** Deliberately carries no user ID, email, or username: the caller already knows who they are. */
 export const TradingAccountResponseSchema = z.object({
   openedAt: isoDateTime,
+  /** The player's unique public name; it is also their country's label. */
+  username: z.string(),
+  countryId: z.uuid(),
+  /** The object name of the player's profile picture inside the avatars bucket, or null (country colour only). */
+  avatarKey: z.string().nullable(),
   cash: z.object({ available: CreditAmountSchema }),
   /** Newest first, capped. The cash figure is computed from the whole ledger, not from this list. */
   activity: z.array(LedgerEntrySchema),

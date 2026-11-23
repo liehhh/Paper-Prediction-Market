@@ -17,6 +17,44 @@ export const ACTIVITY_LIMIT = 50;
 
 type Queryable = Pick<pg.PoolClient, "query">;
 
+/** Every account starts with a unique default name so it always has a country label. 12 hex chars of the id. */
+export function defaultUsername(userId: string): string {
+  return `player_${userId.replaceAll("-", "").slice(0, 12)}`;
+}
+
+/**
+ * Points the player's profile at a new picture (or at none, with null) and returns what it pointed at before, so the
+ * caller can delete the old object AFTER this switch succeeded. Changes nothing else: not the id, colour, slot or Power.
+ * Returns null when the account does not exist.
+ */
+export async function setAvatarKey(pool: pg.Pool, userId: string, avatarKey: string | null): Promise<{ previousKey: string | null } | null> {
+  const { rows } = await pool.query<{ previous: string | null }>(
+    `with old as (select avatar_key from trading.accounts where user_id = $1 for update)
+     update trading.accounts a set avatar_key = $2 from old where a.user_id = $1
+     returning old.avatar_key as previous`,
+    [userId, avatarKey],
+  );
+  return rows[0] ? { previousKey: rows[0].previous } : null;
+}
+
+export class UsernameTakenError extends Error {
+  constructor() {
+    super("That username is already taken.");
+    this.name = "UsernameTakenError";
+  }
+}
+
+/** Changes the caller's unique username (their country label). Returns false when the account does not exist. */
+export async function setUsername(pool: pg.Pool, userId: string, username: string): Promise<boolean> {
+  try {
+    const result = await pool.query("update trading.accounts set username = $2 where user_id = $1", [userId, username]);
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") throw new UsernameTakenError(); // unique_violation on lower(username)
+    throw error;
+  }
+}
+
 /**
  * Creates the account and its starting grant, or returns the existing account unchanged.
  * Safe to call any number of times, from any number of connections at once.
@@ -32,7 +70,7 @@ export async function provisionTradingAccount(pool: pg.Pool, userId: string): Pr
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("insert into trading.accounts (user_id) values ($1) on conflict (user_id) do nothing", [userId]);
+    await client.query("insert into trading.accounts (user_id, username) values ($1, $2) on conflict (user_id) do nothing", [userId, defaultUsername(userId)]);
     await client.query(
       `insert into trading.ledger_entries (account_id, entry_type, amount)
        values ($1, 'starting_grant', $2)
@@ -51,63 +89,50 @@ export async function provisionTradingAccount(pool: pg.Pool, userId: string): Pr
   }
 }
 
-/** Read-only. Returns null when this user has no trading account yet. */
+/**
+ * Read-only. Returns null when this user has no trading account yet.
+ *
+ * ONE statement, so ONE database round trip (about 165 ms to a remote Supabase pooler; every extra statement costs that
+ * again). It is also still one snapshot: the cash figure and the activity list are computed by the same statement, so
+ * they always describe the same ledger, without an explicit transaction.
+ */
 export async function getTradingAccount(pool: pg.Pool, userId: string): Promise<TradingAccountResponse | null> {
-  const client = await pool.connect();
-  try {
-    // One snapshot, so the cash figure and the activity list always describe the same ledger.
-    await client.query("begin isolation level repeatable read read only");
-    const account = await readAccount(client, userId);
-    await client.query("commit");
-    return account;
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  return readAccount(pool, userId);
 }
 
 interface AccountRow {
   created_at: Date;
+  username: string;
+  country_id: string;
+  avatar_key: string | null;
   cash: string;
-}
-interface LedgerRow {
-  id: string;
-  entry_type: LedgerEntryType;
-  amount: string;
-  created_at: Date;
+  /** Newest first. Built inside the same statement, so it matches `cash`. */
+  activity: Array<{ id: string; type: LedgerEntryType; amount: string; createdAt: string }>;
 }
 
 async function readAccount(db: Queryable, userId: string): Promise<TradingAccountResponse | null> {
   // ::text keeps Postgres's exact decimal; node-postgres would otherwise hand back a string anyway,
   // and nothing here ever turns it into a float.
   const account = await db.query<AccountRow>(
-    `select a.created_at,
-            (select coalesce(sum(l.amount), 0) from trading.ledger_entries l where l.account_id = a.user_id)::numeric(20, 6)::text as cash
+    `select a.created_at, a.username, a.country_id, a.avatar_key,
+            (select coalesce(sum(l.amount), 0) from trading.ledger_entries l where l.account_id = a.user_id)::numeric(20, 6)::text as cash,
+            coalesce((
+              select json_agg(json_build_object('id', e.id::text, 'type', e.entry_type, 'amount', e.amount::text, 'createdAt', e.created_at) order by e.id desc)
+                from (select id, entry_type, amount, created_at from trading.ledger_entries
+                       where account_id = a.user_id order by id desc limit $2) e
+            ), '[]'::json) as activity
        from trading.accounts a
       where a.user_id = $1`,
-    [userId],
+    [userId, ACTIVITY_LIMIT],
   );
   const row = account.rows[0];
   if (!row) return null;
-
-  const entries = await db.query<LedgerRow>(
-    `select id::text, entry_type, amount::text, created_at
-       from trading.ledger_entries
-      where account_id = $1
-      order by id desc
-      limit $2`,
-    [userId, ACTIVITY_LIMIT],
-  );
   return {
     openedAt: row.created_at.toISOString(),
+    username: row.username,
+    countryId: row.country_id,
+    avatarKey: row.avatar_key,
     cash: { available: row.cash },
-    activity: entries.rows.map((entry) => ({
-      id: entry.id,
-      type: entry.entry_type,
-      amount: entry.amount,
-      createdAt: entry.created_at.toISOString(),
-    })),
+    activity: row.activity.map((entry) => ({ id: entry.id, type: entry.type, amount: entry.amount, createdAt: new Date(entry.createdAt).toISOString() })),
   };
 }

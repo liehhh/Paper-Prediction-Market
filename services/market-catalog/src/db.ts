@@ -33,10 +33,31 @@ export function buildPoolConfig(databaseUrl: string, caCertPath?: string): pg.Po
     ssl,
     max: 5,
     connectionTimeoutMillis: 10_000,
-    idleTimeoutMillis: 30_000,
+    // Opening a connection to a remote Supabase pooler (TLS + login) costs over a second, so an idle connection is kept for
+    // 10 minutes instead of 30 seconds, and TCP keep-alive stops the network path from silently dropping it.
+    idleTimeoutMillis: 10 * 60_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
     // Bounds every statement so a stuck query cannot hang a request or a sync forever.
     statement_timeout: 60_000,
   };
+}
+
+/**
+ * Opens `connections` connections right away and keeps them warm with a trivial query every `everyMs`.
+ *
+ * Opening a connection to a remote Supabase pooler (TLS + login) costs over a second, and a page that makes several
+ * queries at once needs several connections. Without this, the first page view after a restart (or a quiet spell)
+ * pays that cost. The price is a few idle connections and one `select 1` each every 20 seconds.
+ * Returns a function that stops it.
+ */
+export function keepPoolWarm(pool: pg.Pool, connections = 3, everyMs = 20_000): () => void {
+  // Running the queries AT THE SAME TIME is what makes the pool open that many connections.
+  const ping = () => void Promise.all(Array.from({ length: connections }, () => pool.query("select 1"))).catch(() => undefined);
+  ping();
+  const timer = setInterval(ping, everyMs);
+  timer.unref();
+  return () => clearInterval(timer);
 }
 
 export function createPool(databaseUrl: string, caCertPath?: string): pg.Pool {

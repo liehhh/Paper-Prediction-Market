@@ -26,6 +26,17 @@ export interface NormalizedMarket {
   /** 24-hour trading volume in USD; 0 when Polymarket omits it. Used only to rank questions. */
   volume24hr: number;
   fetchedAt: Date;
+  /** Everything below is what a paper trade needs. Null/false means "browsable but not tradable". */
+  conditionId: string | null;
+  /** CLOB order-book token ids, mapped by outcome LABEL. Both set or both null. */
+  yesTokenId: string | null;
+  noTokenId: string | null;
+  /** Polymarket's published resolution rules, verbatim. */
+  rules: string | null;
+  resolutionSource: string | null;
+  tickSize: number | null;
+  minOrderSize: number | null;
+  orderBookEnabled: boolean;
 }
 
 export type SkipReason =
@@ -145,7 +156,18 @@ function normalizeGammaMarket(rawMarket: unknown, ctx: EventContext): Normalized
     }
   }
 
+  const tokens = mapTokenIds(market.clobTokenIds, labels.length, yesIndex, noIndex);
+  const rules = market.description?.trim() || null;
+
   return {
+    conditionId: market.conditionId?.trim() || null,
+    yesTokenId: tokens?.yes ?? null,
+    noTokenId: tokens?.no ?? null,
+    rules,
+    resolutionSource: market.resolutionSource?.trim() || null,
+    tickSize: market.orderPriceMinTickSize && market.orderPriceMinTickSize > 0 ? market.orderPriceMinTickSize : null,
+    minOrderSize: market.orderMinSize && market.orderMinSize > 0 ? market.orderMinSize : null,
+    orderBookEnabled: market.enableOrderBook === true,
     providerMarketId: marketId,
     providerEventId: ctx.eventId,
     // Single-market events can have an empty title; the question is then the best label.
@@ -177,6 +199,21 @@ export function parseJsonArrayField(value: unknown): unknown[] | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * `clobTokenIds` is positional with `outcomes`: clobTokenIds[i] is the order-book token of outcomes[i].
+ * So YES is whichever index is labelled "Yes", NOT necessarily index 0. Returns null (market is
+ * browsable but not tradable) unless there is exactly one well-formed, distinct token per outcome.
+ */
+export function mapTokenIds(value: unknown, outcomeCount: number, yesIndex: number, noIndex: number): { yes: string; no: string } | null {
+  const ids = parseJsonArrayField(value);
+  if (!ids || ids.length !== outcomeCount) return null;
+  const yes = ids[yesIndex];
+  const no = ids[noIndex];
+  const isTokenId = (id: unknown): id is string => typeof id === "string" && /^\d{1,100}$/.test(id);
+  if (!isTokenId(yes) || !isTokenId(no) || yes === no) return null;
+  return { yes, no };
 }
 
 /** Prices arrive as decimal strings ("0.0375"). Every entry must be a finite number in [0, 1]. */

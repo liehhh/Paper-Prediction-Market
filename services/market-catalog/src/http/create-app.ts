@@ -7,11 +7,19 @@
  */
 import express, { type NextFunction, type Request, type Response } from "express";
 import type pg from "pg";
-import { errorBody, MarketListQuerySchema, type MarketListResponse } from "@league/catalog-contract";
+import {
+  errorBody,
+  MarketListQuerySchema,
+  QuotesRequestSchema,
+  ResolutionsRequestSchema,
+  type MarketListResponse,
+  type QuotesResponse,
+} from "@league/catalog-contract";
+import type { QuoteService } from "../orderbook/quote-service.ts";
 import { getCatalogFreshness, InvalidCursorError, listMarkets } from "../catalog/catalog-queries.ts";
 import { runCatalogSync, type CatalogSyncDependencies } from "../sync/run-catalog-sync.ts";
 
-export function createApp(deps: CatalogSyncDependencies & { pool: pg.Pool }) {
+export function createApp(deps: CatalogSyncDependencies & { pool: pg.Pool; quotes?: QuoteService }) {
   const app = express();
   app.disable("x-powered-by");
 
@@ -33,6 +41,28 @@ export function createApp(deps: CatalogSyncDependencies & { pool: pg.Pool }) {
     const [page, catalog] = await Promise.all([listMarkets(deps.pool, query.data), getCatalogFreshness(deps.pool)]);
     const body: MarketListResponse = { ...page, catalog };
     res.json(body);
+  });
+
+  // Live quotes and official resolutions for trading. POST because the market list is a body, not a URL.
+  // intent "pin" is how services/trading keeps markets with open positions tracked while nobody is looking.
+  app.post("/internal/v1/quotes", express.json({ limit: "16kb" }), async (req, res) => {
+    const body = QuotesRequestSchema.safeParse(req.body);
+    if (!body.success || !deps.quotes) {
+      res.status(body.success ? 503 : 400).json(errorBody(body.success ? "quotes_unavailable" : "invalid_request", body.success ? "Live quotes are not enabled." : "Invalid request body."));
+      return;
+    }
+    const quotes = await deps.quotes.quotes(body.data.marketIds, body.data.intent);
+    const response: QuotesResponse = { quotes };
+    res.set("Cache-Control", "no-store").json(response);
+  });
+
+  app.post("/internal/v1/resolutions", express.json({ limit: "16kb" }), async (req, res) => {
+    const body = ResolutionsRequestSchema.safeParse(req.body);
+    if (!body.success || !deps.quotes) {
+      res.status(body.success ? 503 : 400).json(errorBody(body.success ? "quotes_unavailable" : "invalid_request", body.success ? "Resolutions are not enabled." : "Invalid request body."));
+      return;
+    }
+    res.set("Cache-Control", "no-store").json({ resolutions: await deps.quotes.resolutions(body.data.marketIds) });
   });
 
   let syncInProgress = false;

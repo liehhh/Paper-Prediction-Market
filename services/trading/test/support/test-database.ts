@@ -18,10 +18,17 @@ export interface TestDatabase {
   databaseUrl: string;
   /** Empties the trading tables between tests. */
   reset(): Promise<void>;
+  /** Applies the migrations that startTestDatabase({ stopBefore }) held back. */
+  applyRemainingMigrations(): Promise<void>;
   stop(): Promise<void>;
 }
 
-export async function startTestDatabase(): Promise<TestDatabase> {
+export interface StartOptions {
+  /** Apply only migrations whose file name sorts BEFORE this one (to test upgrading existing data). */
+  stopBefore?: string;
+}
+
+export async function startTestDatabase(options: StartOptions = {}): Promise<TestDatabase> {
   const dataDir = await mkdtemp(path.join(tmpdir(), "league-test-pg-"));
   const port = await findFreePort();
   const server = new EmbeddedPostgres({
@@ -40,24 +47,32 @@ export async function startTestDatabase(): Promise<TestDatabase> {
 
   const databaseUrl = `postgresql://postgres:postgres@127.0.0.1:${port}/postgres`;
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 5 });
-  await applyMigrations(pool);
+  await applyMigrations(pool, { before: options.stopBefore });
 
   return {
     pool,
     databaseUrl,
     async reset() {
-      await pool.query("truncate trading.ledger_entries, trading.accounts restart identity cascade");
+      await pool.query("truncate trading.fills, trading.orders, trading.positions, trading.settlements, trading.ledger_entries, trading.accounts restart identity cascade");
+    },
+    async applyRemainingMigrations() {
+      await applyMigrations(pool, { from: options.stopBefore });
     },
     async stop() {
       await pool.end();
       await server.stop();
-      await rm(dataDir, { recursive: true, force: true });
+      // Right after Postgres stops, Windows can still hold a lock on its folder (EBUSY). Retry, and never fail a test run over
+      // a leftover temp directory.
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => undefined);
     },
   };
 }
 
-async function applyMigrations(pool: pg.Pool): Promise<void> {
-  const files = (await readdir(MIGRATIONS_DIR)).filter((file) => file.endsWith(".sql")).sort();
+async function applyMigrations(pool: pg.Pool, range: { before?: string | undefined; from?: string | undefined } = {}): Promise<void> {
+  const files = (await readdir(MIGRATIONS_DIR))
+    .filter((file) => file.endsWith(".sql"))
+    .sort()
+    .filter((file) => (range.before === undefined || file < range.before) && (range.from === undefined || file >= range.from));
   for (const file of files) {
     await pool.query(await readFile(path.join(MIGRATIONS_DIR, file), "utf8"));
   }

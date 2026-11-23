@@ -5,6 +5,7 @@ import { MarketCard } from "@/components/market-card";
 import { NoticeBox } from "@/components/notice-box";
 import { describeCatalog, type CatalogNotice } from "@/lib/catalog-notice";
 import { formatDateTimeUtc, formatRelative } from "@/lib/format";
+import { SiteNav } from "@/components/site-nav";
 import { getMarketPage } from "@/lib/public-api";
 
 // Always render on request: the catalog changes whenever a sync runs.
@@ -27,13 +28,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
       <header className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Paper Prediction League</p>
-          <Link href="/dashboard" className="text-sm font-medium underline-offset-2 hover:underline">
-            My account
-          </Link>
+          <SiteNav />
         </div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Market catalog</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Open Polymarket questions, most-traded first (ranked by reported 24-hour volume). Virtual credits only — no real money.
+          Open Polymarket questions, most-traded first (ranked by reported 24-hour volume). Trade with Power, the game&apos;s virtual currency: no real money. Open a political market to preview and place a paper trade.
         </p>
       </header>
 
@@ -47,7 +46,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
             </Link>
           </NoticeBox>
         ) : (
-          <NoticeBox tone="error" title="The league API cannot be reached right now.">
+          <NoticeBox tone="error" title="The server cannot be reached right now.">
             The market list could not be loaded. Saved markets are not lost; try again in a moment.
           </NoticeBox>
         )

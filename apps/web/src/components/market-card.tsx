@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CATEGORY_LABELS, type Market } from "@league/catalog-contract";
 import { formatDate, formatDateTimeUtc, formatPriceCents } from "@/lib/format";
 
@@ -20,7 +21,11 @@ export function MarketCard({ market, now }: { market: Market; now: Date }) {
 
       <div>
         {showEventTitle && <p className="text-xs text-zinc-500 dark:text-zinc-400">{market.eventTitle}</p>}
-        <h2 className="text-base font-semibold leading-snug">{market.question}</h2>
+        <h2 className="text-base font-semibold leading-snug">
+          <Link href={`/markets/${market.id}`} className="underline-offset-2 hover:underline">
+            {market.question}
+          </Link>
+        </h2>
       </div>
 
       <p className="text-sm text-zinc-600 dark:text-zinc-400">

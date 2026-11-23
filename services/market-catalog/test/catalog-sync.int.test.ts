@@ -183,6 +183,14 @@ describe("full-catalog sync against PostgreSQL", () => {
       acceptingOrders: true,
       volume24hr: 0,
       fetchedAt: new Date(),
+      conditionId: null,
+      yesTokenId: null,
+      noTokenId: null,
+      rules: null,
+      resolutionSource: null,
+      tickSize: null,
+      minOrderSize: null,
+      orderBookEnabled: false,
     });
     const publish = (runId: number, yes: number) =>
       publishSyncRun(db.pool, { runId, markets: [market("1", yes)], isComplete: true, statusDetail: null, pagesFetched: 1, skipCounts: {} });

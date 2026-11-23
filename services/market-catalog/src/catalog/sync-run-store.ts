@@ -167,6 +167,14 @@ async function upsertMarkets(client: pg.PoolClient, markets: MarketToPublish[]):
     expected_end_at: market.expectedEndAt?.toISOString() ?? null,
     accepting_orders: market.acceptingOrders,
     last_seen_at: market.fetchedAt.toISOString(),
+    condition_id: market.conditionId,
+    yes_token_id: market.yesTokenId,
+    no_token_id: market.noTokenId,
+    rules: market.rules,
+    resolution_source: market.resolutionSource,
+    tick_size: market.tickSize,
+    min_order_size: market.minOrderSize,
+    order_book_enabled: market.orderBookEnabled,
   }));
   const json = JSON.stringify(rows);
 
@@ -181,15 +189,19 @@ async function upsertMarkets(client: pg.PoolClient, markets: MarketToPublish[]):
     `insert into market_catalog.markets as m (
         provider_market_id, provider_event_id, event_title, event_slug, question, categories,
         outcome_labels, yes_price, no_price, prices_as_of, volume24hr, source_url, expected_end_at,
-        accepting_orders, last_seen_at)
+        accepting_orders, last_seen_at, condition_id, yes_token_id, no_token_id, rules, resolution_source,
+        tick_size, min_order_size, order_book_enabled)
      select r.provider_market_id, r.provider_event_id, r.event_title, r.event_slug, r.question, r.categories,
             r.outcome_labels, r.yes_price, r.no_price, r.prices_as_of, r.volume24hr, r.source_url, r.expected_end_at,
-            r.accepting_orders, r.last_seen_at
+            r.accepting_orders, r.last_seen_at, r.condition_id, r.yes_token_id, r.no_token_id, r.rules,
+            r.resolution_source, r.tick_size, r.min_order_size, r.order_book_enabled
        from jsonb_to_recordset($1::jsonb) as r(
             provider_market_id text, provider_event_id text, event_title text, event_slug text,
             question text, categories text[], outcome_labels text[], yes_price numeric, no_price numeric,
             prices_as_of timestamptz, volume24hr numeric, source_url text, expected_end_at timestamptz,
-            accepting_orders boolean, last_seen_at timestamptz)
+            accepting_orders boolean, last_seen_at timestamptz, condition_id text, yes_token_id text,
+            no_token_id text, rules text, resolution_source text, tick_size numeric, min_order_size numeric,
+            order_book_enabled boolean)
      on conflict (provider, provider_market_id) do update set
             provider_event_id = excluded.provider_event_id,
             event_title = excluded.event_title,
@@ -204,16 +216,28 @@ async function upsertMarkets(client: pg.PoolClient, markets: MarketToPublish[]):
             source_url = excluded.source_url,
             expected_end_at = excluded.expected_end_at,
             accepting_orders = excluded.accepting_orders,
+            condition_id = excluded.condition_id,
+            yes_token_id = excluded.yes_token_id,
+            no_token_id = excluded.no_token_id,
+            rules = excluded.rules,
+            resolution_source = excluded.resolution_source,
+            tick_size = excluded.tick_size,
+            min_order_size = excluded.min_order_size,
+            order_book_enabled = excluded.order_book_enabled,
             listing_status = 'listed',
             delisted_at = null,
             last_seen_at = excluded.last_seen_at
       -- last_seen_at and prices_as_of are deliberately not compared: they change on every run.
       where (m.provider_event_id, m.event_title, m.event_slug, m.question, m.categories, m.outcome_labels,
-             m.yes_price, m.no_price, m.volume24hr, m.source_url, m.expected_end_at, m.accepting_orders, m.listing_status)
+             m.yes_price, m.no_price, m.volume24hr, m.source_url, m.expected_end_at, m.accepting_orders, m.listing_status,
+             m.condition_id, m.yes_token_id, m.no_token_id, m.rules, m.resolution_source, m.tick_size, m.min_order_size,
+             m.order_book_enabled)
             is distinct from
             (excluded.provider_event_id, excluded.event_title, excluded.event_slug, excluded.question, excluded.categories,
              excluded.outcome_labels, excluded.yes_price, excluded.no_price, excluded.volume24hr, excluded.source_url,
-             excluded.expected_end_at, excluded.accepting_orders, 'listed')`,
+             excluded.expected_end_at, excluded.accepting_orders, 'listed',
+             excluded.condition_id, excluded.yes_token_id, excluded.no_token_id, excluded.rules, excluded.resolution_source,
+             excluded.tick_size, excluded.min_order_size, excluded.order_book_enabled)`,
     [json],
   );
   return result.rowCount ?? 0;

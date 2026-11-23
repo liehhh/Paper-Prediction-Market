@@ -51,7 +51,9 @@ export async function startTestDatabase(): Promise<TestDatabase> {
     async stop() {
       await pool.end();
       await server.stop();
-      await rm(dataDir, { recursive: true, force: true });
+      // Right after Postgres stops, Windows can still hold a lock on its folder (EBUSY). Retry, and never fail a test run over
+      // a leftover temp directory.
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => undefined);
     },
   };
 }
